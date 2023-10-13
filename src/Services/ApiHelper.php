@@ -366,7 +366,31 @@ class ApiHelper implements IApiHelper
      */
     public function createWebhook(array $payload): ResponseAccess
     {
-        $query = '
+        $addressType = str_starts_with($payload['address'], 'arn:') ? 'arn' : 'callbackUrl';
+        if($addressType === 'arn'){
+         $query = '
+            mutation eventBridgeWebhookSubscriptionCreate(
+                $topic: WebhookSubscriptionTopic!, 
+                $webhookSubscription: EventBridgeWebhookSubscriptionInput!
+            ) {
+                eventBridgeWebhookSubscriptionCreate(
+                    topic: $topic, 
+                    webhookSubscription: $webhookSubscription
+                ) {
+                    userErrors {
+                      field
+                      message
+                    }
+                    webhookSubscription {
+                      id
+                      topic
+                    }
+                }
+            }
+            ';
+        }
+        else{
+          $query = '
         mutation webhookSubscriptionCreate(
             $topic: WebhookSubscriptionTopic!,
             $webhookSubscription: WebhookSubscriptionInput!
@@ -386,6 +410,8 @@ class ApiHelper implements IApiHelper
             }
         }
         ';
+        }
+      
 
         // Change REST-format topics ("resource/event")
         // to GraphQL-format topics ("RESOURCE_EVENT"), for pre-v17 compatibility
@@ -393,7 +419,7 @@ class ApiHelper implements IApiHelper
         $variables = [
             'topic' => $topic,
             'webhookSubscription' => [
-                'callbackUrl' => $payload['address'],
+                $addressType => $payload['address'],
                 'format' => 'JSON',
             ],
         ];
